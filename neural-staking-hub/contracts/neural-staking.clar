@@ -25,3 +25,57 @@
 (define-data-var total-staked uint u0)
 (define-data-var total-rewards-paid uint u0)
 (define-data-var emergency-shutdown bool false)
+
+;; Data Maps
+(define-map pools
+  { pool-id: uint }
+  {
+    name: (string-ascii 50),
+    total-staked: uint,
+    reward-multiplier: uint,
+    active: bool
+  }
+)
+
+(define-map stakes
+  { staker: principal, pool-id: uint }
+  {
+    amount: uint,
+    start-block: uint,
+    last-claim-block: uint
+  }
+)
+
+(define-map unstake-requests
+  { staker: principal, pool-id: uint }
+  {
+    amount: uint,
+    request-block: uint
+  }
+)
+
+(define-map staker-stats
+  { staker: principal }
+  {
+    total-staked: uint,
+    total-rewards-claimed: uint,
+    pools-participated: uint
+  }
+)
+
+(define-map delegations
+  { delegator: principal, pool-id: uint }
+  {
+    delegate: principal,
+    active: bool
+  }
+)
+
+(define-map pool-stats
+  { pool-id: uint }
+  {
+    total-stakers: uint,
+    total-rewards-distributed: uint,
+    created-at: uint
+  }
+)
