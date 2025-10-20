@@ -317,3 +317,111 @@
     (ok rewards)
   )
 )
+
+;; #[allow(unchecked_data)]
+(define-public (update-pool-multiplier (pool-id uint) (new-multiplier uint))
+  (let
+    (
+      (pool-info (unwrap! (get-pool pool-id) err-invalid-pool))
+    )
+    (asserts! (is-eq tx-sender contract-owner) err-owner-only)
+    (map-set pools
+      { pool-id: pool-id }
+      (merge pool-info { reward-multiplier: new-multiplier })
+    )
+    (ok true)
+  )
+)
+
+;; #[allow(unchecked_data)]
+(define-public (deactivate-pool (pool-id uint))
+  (let
+    (
+      (pool-info (unwrap! (get-pool pool-id) err-invalid-pool))
+    )
+    (asserts! (is-eq tx-sender contract-owner) err-owner-only)
+    (map-set pools
+      { pool-id: pool-id }
+      (merge pool-info { active: false })
+    )
+    (ok true)
+  )
+)
+
+;; #[allow(unchecked_data)]
+(define-public (reactivate-pool (pool-id uint))
+  (let
+    (
+      (pool-info (unwrap! (get-pool pool-id) err-invalid-pool))
+    )
+    (asserts! (is-eq tx-sender contract-owner) err-owner-only)
+    (map-set pools
+      { pool-id: pool-id }
+      (merge pool-info { active: true })
+    )
+    (ok true)
+  )
+)
+
+(define-public (delegate-stake (pool-id uint) (delegate principal))
+  (let
+    (
+      (stake-info (unwrap! (get-stake tx-sender pool-id) err-no-stake-found))
+      (existing-delegation (get-delegation tx-sender pool-id))
+    )
+    (asserts! (not (is-eq tx-sender delegate)) err-self-delegation)
+    (asserts! (is-none existing-delegation) err-already-delegated)
+    
+    (map-set delegations
+      { delegator: tx-sender, pool-id: pool-id }
+      {
+        delegate: delegate,
+        active: true
+      }
+    )
+    (ok true)
+  )
+)
+
+;; #[allow(unchecked_data)]
+(define-public (revoke-delegation (pool-id uint))
+  (let
+    (
+      (delegation-info (unwrap! (get-delegation tx-sender pool-id) err-not-delegated))
+    )
+    (map-delete delegations { delegator: tx-sender, pool-id: pool-id })
+    (ok true)
+  )
+)
+
+;; #[allow(unchecked_data)]
+(define-public (emergency-withdraw (pool-id uint))
+  (let
+    (
+      (stake-info (unwrap! (get-stake tx-sender pool-id) err-no-stake-found))
+      (pool-info (unwrap! (get-pool pool-id) err-invalid-pool))
+      (amount (get amount stake-info))
+    )
+    (asserts! (var-get emergency-shutdown) err-owner-only)
+    
+    (try! (as-contract (stx-transfer? amount tx-sender tx-sender)))
+    
+    (map-delete stakes { staker: tx-sender, pool-id: pool-id })
+    
+    (map-set pools
+      { pool-id: pool-id }
+      (merge pool-info { total-staked: (- (get total-staked pool-info) amount) })
+    )
+    
+    (var-set total-staked (- (var-get total-staked) amount))
+    (ok amount)
+  )
+)
+
+(define-public (toggle-emergency-shutdown)
+  (begin
+    (asserts! (is-eq tx-sender contract-owner) err-owner-only)
+    (var-set emergency-shutdown (not (var-get emergency-shutdown)))
+    (ok (var-get emergency-shutdown))
+  )
+)
