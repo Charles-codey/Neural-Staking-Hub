@@ -79,3 +79,53 @@
     created-at: uint
   }
 )
+
+;; Read-only functions
+(define-read-only (get-pool (pool-id uint))
+  (map-get? pools { pool-id: pool-id })
+)
+
+(define-read-only (get-stake (staker principal) (pool-id uint))
+  (map-get? stakes { staker: staker, pool-id: pool-id })
+)
+
+(define-read-only (get-total-staked)
+  (ok (var-get total-staked))
+)
+
+(define-read-only (get-staker-stats (staker principal))
+  (map-get? staker-stats { staker: staker })
+)
+
+(define-read-only (get-pool-stats (pool-id uint))
+  (map-get? pool-stats { pool-id: pool-id })
+)
+
+(define-read-only (get-delegation (delegator principal) (pool-id uint))
+  (map-get? delegations { delegator: delegator, pool-id: pool-id })
+)
+
+(define-read-only (get-unstake-request (staker principal) (pool-id uint))
+  (map-get? unstake-requests { staker: staker, pool-id: pool-id })
+)
+
+(define-read-only (is-emergency-shutdown)
+  (ok (var-get emergency-shutdown))
+)
+
+(define-read-only (get-total-rewards-paid)
+  (ok (var-get total-rewards-paid))
+)
+
+(define-read-only (calculate-rewards (staker principal) (pool-id uint))
+  (let
+    (
+      (stake-info (unwrap! (get-stake staker pool-id) err-no-stake-found))
+      (pool-info (unwrap! (get-pool pool-id) err-invalid-pool))
+      (blocks-staked (- stacks-block-height (get last-claim-block stake-info)))
+      (base-reward (/ (* (get amount stake-info) blocks-staked) u100000))
+      (multiplier (get reward-multiplier pool-info))
+    )
+    (ok (/ (* base-reward multiplier) u100))
+  )
+)
